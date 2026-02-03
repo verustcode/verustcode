@@ -1,0 +1,71 @@
+# =============================================================================
+# VerustCode Docker Build Context Ignore File
+# Excludes unnecessary files to optimize build speed and image size
+# =============================================================================
+
+# Git
+.git
+.gitignore
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Build artifacts (will be built in container)
+verustcode
+*.exe
+coverage/
+
+# Data and runtime directories (mounted as volumes)
+data/
+logs/
+workspace/
+report_workspace/
+review_results/
+reports/
+temp_files/
+
+# Frontend build artifacts (will be rebuilt in container)
+frontend/node_modules/
+frontend/dist/
+internal/admin/dist/
+
+# Documentation and non-essential files
+docs/
+*.md
+!frontend/*.md
+LICENSE
+
+# Test files
+*_test.go
+scripts/test_*.sh
+
+# Docker files (prevent recursive inclusion)
+Dockerfile
+docker-compose.yml
+docker/
+.dockerignore
+
+# Cursor/Editor project files
+.cursor/
+.cursorignore
+
+# Environment files (secrets should be passed via env vars)
+.env
+.env.*
+*.env
+
+# Config files with secrets (mount via volumes)
+config/config.yaml
+
+# Backup files
+*.backup
+*.bak
+
+
+
+

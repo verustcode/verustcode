@@ -1,0 +1,154 @@
+# Git Provider Integration Rules
+
+Guidelines for implementing new Git hosting providers (GitHub, GitLab, Bitbucket, etc.) into VerustCode.
+
+## Quick Start (4 Steps)
+
+1. Create `internal/git/{provider}/{provider}.go`
+2. Implement `provider.Provider` interface
+3. Register via `init()`: `provider.Register("provider_name", NewProvider)`
+4. Import in `internal/git/providers/providers.go`
+
+## Provider Interface Methods
+
+All methods must be implemented (see `internal/git/provider/provider.go`):
+
+| Method | Description |
+|--------|-------------|
+| `Name()` | Return provider name ("github", "gitlab") |
+| `Clone()` | Clone repository |
+| `ClonePR()` | Clone PR/MR using refs (supports fork PRs) |
+| `GetPRRef()` | Get ref path: `refs/pull/{n}/head` or `refs/merge-requests/{n}/head` |
+| `GetPullRequest()` | Get PR details |
+| `ListPullRequests()` | List open PRs |
+| `PostComment()` | Post comment on PR/commit |
+| `ListComments()` | List PR comments |
+| `DeleteComment()` | Delete comment by ID |
+| `UpdateComment()` | Update comment (GitLab needs prNumber) |
+| `ParseWebhook()` | Parse webhook request |
+| `CreateWebhook()` | Create repository webhook |
+| `DeleteWebhook()` | Delete webhook |
+| `ValidateToken()` | Validate access token |
+| `ParseRepoPath()` | Parse owner/repo from URL |
+
+## Key Implementation Points
+
+### ClonePR (4-step flow)
+
+Use the helper function `provider.ClonePRWithRefs()` to avoid code duplication:
+
+```go
+// Recommended: Use helper function
+func (p *MyProvider) ClonePR(ctx context.Context, owner, repo string, prNumber int, destPath string, opts *provider.CloneOptions) error {
+    return provider.ClonePRWithRefs(ctx, &provider.ClonePRParams{
+        ProviderName:       "my_provider",
+        RepoURL:            p.buildCloneURL(owner, repo),
+        PRRef:              p.GetPRRef(prNumber),  // refs/pull/{n}/head or refs/merge-requests/{n}/head
+        PRNumber:           prNumber,
+        DestPath:           destPath,
+        InsecureSkipVerify: p.insecureSkipVerify,
+    })
+}
+```
+
+The helper executes these 4 steps internally:
+
+1. `git init` - Initialize repository
+2. `git remote set-url/add` - Configure remote origin
+3. `git fetch --no-tags origin {ref}:{branch}` - Fetch PR refs
+4. `git checkout {branch}` - Checkout PR branch
+
+**Features**:
+- Handles `InsecureSkipVerify` (sets `GIT_SSL_NO_VERIFY=true`)
+- Returns `provider.ProviderError` with helpful messages
+- Provides specific error hints for common failures (auth, SSL, not found)
+
+**Note**: Each provider maintains its own `ClonePR` method and can customize logging or add provider-specific logic before/after calling the helper.
+
+### ParseRepoPath
+
+- **GitHub**: `owner/repo` (two-level)
+- **GitLab**: `group/subgroup/project` (multi-level, first segment = owner, rest = repo)
+
+```go
+// Handle URL formats: https://, http://, git@
+// Remove .git suffix and trailing slash
+```
+
+### Webhook Handling
+
+1. **Normalize actions**: `open`→`opened`, `update`→`synchronize`, `reopen`→`reopened`
+2. **Extract PR info**: title, description, base_sha, changed_files
+3. **Validate signature**:
+   - GitHub: HMAC SHA256 (`X-Hub-Signature-256`)
+   - GitLab: Token comparison (`X-Gitlab-Token`)
+
+### Type Conversions
+
+- GitLab: `int64` → `int` for PR number
+- Comment ID: always use `int64`
+- Unify to `provider.PullRequest`, `provider.Comment`
+
+## Error Handling
+
+```go
+return &provider.ProviderError{
+    Provider: "gitlab",
+    Message:  "authentication failed: check GITLAB_TOKEN",
+    Err:      err,
+}
+```
+
+Common errors to handle:
+- Authentication: "check your {PROVIDER}_TOKEN"
+- Repo not found: "verify owner/repo and access permissions"
+- SSL issues: "set insecure_skip_verify: true for self-signed certs"
+- Missing refs: "admin may need to enable merge_request_fetchable" (GitLab)
+
+## Self-Hosted Support
+
+- Build URLs dynamically from `ProviderOptions.BaseURL`
+- Support HTTP/HTTPS
+- Set `GIT_SSL_NO_VERIFY=true` when `InsecureSkipVerify=true`
+
+```yaml
+git:
+  providers:
+    - type: gitlab
+      url: https://git.example.com  # Self-hosted URL
+      token: ${GITLAB_TOKEN}
+      webhook_secret: ${GITLAB_WEBHOOK_SECRET}
+      insecure_skip_verify: false   # For self-signed certs
+```
+
+## Registration
+
+```go
+func init() {
+    provider.Register("provider_name", NewProvider)
+}
+```
+
+In `internal/git/providers/providers.go`:
+```go
+import _ "github.com/verustcode/verustcode/internal/git/{provider}"
+```
+
+## Check Command Integration
+
+Add credential checks in `internal/check/credentials.go`:
+
+1. Add credential types: `Credential{Provider}` and `Credential{Provider}URL` (if self-hosted)
+2. Add configs in `getCredentialConfigs()`: `SC_{PROVIDER}_TOKEN` and `SC_{PROVIDER}_URL`
+3. Add handlers in `getConfigValue()`: retrieve from `cfg.Git.GetProvider("{provider}")`
+
+## Checklist
+
+- [ ] Implement all Provider interface methods
+- [ ] Support `BaseURL` for self-hosted
+- [ ] Support `InsecureSkipVerify` option
+- [ ] Normalize webhook actions
+- [ ] Use `provider.ProviderError` with helpful messages
+- [ ] Register in `init()` and add import to `providers.go`
+- [ ] Update `config.example.yaml`
+- [ ] Add credential checks to `internal/check/credentials.go`

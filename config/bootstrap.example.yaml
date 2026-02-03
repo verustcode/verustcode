@@ -1,0 +1,168 @@
+# VerustCode Bootstrap Configuration Example
+# Copy this file to config/bootstrap.yaml and modify as needed
+#
+# This file contains core system settings that require server restart to take effect.
+# For runtime configuration (git providers, agents, review settings, etc.), use the admin web interface.
+#
+# Environment Variable Substitution:
+#   - Use ${VAR_NAME} syntax to reference environment variables (NOT $VAR_NAME)
+#   - All VerustCode environment variables use SC_ prefix to avoid conflicts
+#   - Example: jwt_secret: ${SC_ADMIN_JWT_SECRET}
+#   - Note: Only ${VAR_NAME} format is supported to avoid conflicts with special characters (e.g., bcrypt hashes)
+#
+# Environment Variable Overrides:
+#   - SC_SERVER_HOST, SC_SERVER_PORT, SC_SERVER_DEBUG
+#   - SC_DATABASE_PATH
+#   - SC_ADMIN_USERNAME, SC_ADMIN_PASSWORD_HASH, SC_ADMIN_JWT_SECRET
+#   - SC_LOG_LEVEL, SC_LOG_FORMAT, SC_LOG_FILE
+#   - SC_TELEMETRY_ENABLED, SC_OTLP_ENABLED, SC_OTLP_ENDPOINT
+#   - SC_PROMETHEUS_ENABLED, SC_PROMETHEUS_PORT
+
+server:
+  # Server host address
+  # Default: "0.0.0.0" (listen on all interfaces)
+  # Production: Consider using "127.0.0.1" for localhost only
+  # Can be overridden with --host flag
+  host: "0.0.0.0"
+  
+  # Server port
+  # Default: 8091
+  # Can be overridden with --port flag
+  port: 8091
+  
+  # Enable debug mode
+  # Default: false
+  # When enabled: verbose logging, detailed error messages
+  # Can be overridden with --debug flag
+  debug: false
+
+# Database configuration
+database:
+  # Database file path
+  # Default: "./data/verustcode.db"
+  # SQLite database file location
+  # Ensure the directory exists and has write permissions
+  path: "./data/verustcode.db"
+
+# Admin console configuration
+# Enables web-based management interface at /admin
+admin:
+  # Enable admin console
+  enabled: true
+  # Admin username (REQUIRED - must not be empty when admin is enabled)
+  # Default: admin
+  username: admin
+  # Admin password hash (can be set via web UI on first launch)
+  # Leave empty to set password via web interface when you first start the server
+  # Password requirements: 8+ characters, uppercase, lowercase, digit, special character
+  # Once set, this will be automatically updated with a bcrypt hash
+  # Example hash (for password "Admin@123"): "$2a$10$M94HiWzcNR0EbwLIDxbgWepNTIQ/hMNNIbPkyGiCDtraRFL5jkpIC"
+  password_hash: "" 
+  # JWT secret key for token signing (REQUIRED - must not be empty when admin is enabled)
+  # Must be at least 32 characters long for security (HS256 requires 256 bits)
+  # Generate with: openssl rand -base64 32
+  # You can generate a secure secret by running: verustcode serve (it will suggest one if missing)
+  jwt_secret: 
+  # Token expiration time (in hours)
+  expiry_hours: 24
+
+logging:
+  # Log level: debug, info, warn, error
+  # Default: info
+  # Development: debug (verbose logging)
+  # Production: info or warn (less verbose)
+  level: info
+  
+  # Log format: json, text
+  # Default: text
+  # Development: text (human-readable, colored on console)
+  # Production: json (structured, machine-parseable)
+  format: text
+  
+  # Log file path (empty for console only)
+  # Default: "" (console only)
+  # When set, logs are written to BOTH console and file
+  # Production: Specify a file path (e.g., "/var/log/verustcode/app.log")
+  file: ""
+  
+  # Log rotation settings (only apply when file is configured)
+  # Maximum size in megabytes before log rotation
+  # Default: 100
+  max_size: 100
+  
+  # Maximum number of days to retain old log files
+  # Default: 7
+  max_age: 7
+  
+  # Maximum number of old log files to retain
+  # Default: 5
+  max_backups: 5
+  
+  # Compress rotated log files using gzip
+  # Default: false
+  compress: false
+  
+  # Access log: enable/disable HTTP request logging
+  # Default: false
+  # When true, successful HTTP requests are logged at info level
+  # When false, only errors (4xx/5xx) are logged
+  access_log: false
+
+# Task recovery configuration
+# Controls how pending/processing tasks are recovered on server restart
+recovery:
+  # Task timeout in hours
+  # Default: 24
+  # Tasks that have been running longer than this will be marked as failed on restart
+  # This prevents zombie tasks from blocking resources indefinitely
+  task_timeout_hours: 24
+  
+  # Maximum retry count
+  # Default: 3
+  # Tasks that have been retried this many times will be marked as failed on restart
+  # This prevents infinite retry loops for permanently failing tasks
+  max_retry_count: 3
+
+# OpenTelemetry configuration for observability
+telemetry:
+  # Enable/disable telemetry (traces and metrics)
+  # Default: false
+  # Enable for production monitoring and debugging
+  enabled: false
+  
+  # Service name for telemetry identification
+  # Default: verustcode
+  # Used to identify this service in telemetry backends
+  service_name: verustcode
+  
+  # OTLP exporter configuration (for traces)
+  otlp:
+    # Enable OTLP trace export
+    # Default: false
+    enabled: false
+    
+    # OTLP collector endpoint (gRPC)
+    # Default: "localhost:4317"
+    # Examples:
+    #   - Jaeger: localhost:4317
+    #   - Grafana Tempo: tempo:4317
+    #   - Honeycomb: api.honeycomb.io:443
+    endpoint: "localhost:4317"
+    
+    # Disable TLS (for local development)
+    # Default: true
+    # Production: Set to false and configure proper TLS
+    insecure: true
+  
+  # Prometheus metrics configuration
+  prometheus:
+    # Enable Prometheus metrics endpoint
+    # Default: false
+    # When enabled, exposes /metrics endpoint
+    enabled: false
+    
+    # Port for metrics HTTP server (/metrics endpoint)
+    # Default: 9090
+    # Should be different from main server port
+    port: 9090
+

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="Open Core Mark">
+  <!-- base core -->
+  <rect x="18" y="18" width="64" height="64" rx="14" fill="#3b82f6"/>
+
+  <!-- structural cut (open) -->
+  <polygon points="58,18 82,18 82,42" fill="#e5e7eb"/>
+
+  <!-- terminal prompt >_ -->
+  <path d="M28 36 L42 50 L28 64" fill="none" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="50" y="60" width="20" height="6" rx="2" fill="#FFFFFF" opacity="0.9"/>
+</svg>

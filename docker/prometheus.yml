@@ -1,0 +1,26 @@
+# Prometheus Configuration for VerustCode
+# Scrapes metrics from VerustCode application
+
+global:
+  # How frequently to scrape targets
+  scrape_interval: 15s
+  # How frequently to evaluate rules
+  evaluation_interval: 15s
+
+# Scrape configurations
+scrape_configs:
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # VerustCode application metrics
+  # Requires telemetry.prometheus.enabled: true in config.yaml
+  - job_name: 'verustcode'
+    static_configs:
+      - targets: ['verustcode:9090']
+    # Metrics path (default for OpenTelemetry Prometheus exporter)
+    metrics_path: '/metrics'
+    # Scrape timeout
+    scrape_timeout: 10s
+

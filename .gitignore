@@ -1,0 +1,101 @@
+# Go build output
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+/verustcode
+
+# Go test binary
+*.test
+
+# Go coverage files
+*.out
+coverage.html
+
+# Go vendor (if not committed)
+# /vendor/
+
+# IDE and editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Node.js / Frontend
+/web/node_modules/
+/web/dist/
+/web/.vite/
+/web/*.local
+/web/tsconfig.tsbuildinfo
+/web/tsconfig.node.tsbuildinfo
+/web/vite.config.js
+/web/vite.config.d.ts
+
+/frontend/node_modules/
+/frontend/dist/
+/frontend/.vite/
+/frontend/*.local
+/frontend/tsconfig.tsbuildinfo
+/frontend/tsconfig.node.tsbuildinfo
+
+# Environment files
+.env
+.env.local
+.env.*.local
+*.env
+
+# Config with secrets (keep example only)
+/config/bootstrap.yaml
+/config/bootstrap.yaml.backup
+/config/review.yaml
+/config/reviews/default.yaml
+/config/reports/*.yaml
+!/config/reports/*.example.yaml
+
+# Database files (keep .gitkeep)
+/data/*.db
+/data/*.db-journal
+/data/*.db-shm
+/data/*.db-wal
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+temp_files/
+*.tmp
+
+# Debug files
+debug
+*.pprof
+
+.playwright-mcp/
+
+# Embedded frontend build artifacts
+/cmd/verustcode/web/dist/
+
+/workspace/
+/reports/
+
+/internal/admin/dist/
+
+# Embedded configfiles build artifacts
+/internal/configfiles/*.yaml
+/internal/configfiles/schemas/
+/internal/configfiles/reports/
+
+/repos/
+/report_workspace/
+/review_results/
+
+/coverage/

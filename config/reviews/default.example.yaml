@@ -1,0 +1,294 @@
+# VerustCode Review Rules Configuration Example
+# Copy and modify this file to create your own review rules.
+version: "1.0"
+
+# Base configuration inherited by all rules
+rule_base:
+  # AI agent configuration
+  # type: "cursor", "gemini", "mock" or custom agent defined in config.yaml
+  # model: optional, uses agent's default model if not specified
+  agent:
+    type: cursor
+    # model: sonnet-4.5  # Uncomment to specify model
+
+  constraints:
+    scope_control:
+      - Review **only code changed in this PR**
+      - Do NOT comment on unrelated legacy code
+
+    # Focus on issues only (default: true)
+    # When true, the reviewer will:
+    # - Only report issues/problems found in the code
+    # - NOT explain what the code changes do or what problem they fix
+    # - NOT describe the intent or purpose of the changes
+    # - NOT praise or commend the changes
+    # focus_on_issues_only: true
+
+    # Severity configuration
+    # Severity levels are system constants: info, low, medium, high, critical
+    # severity:
+    #   min_report: medium  # Filter out issues below this level
+
+  output:
+    # LLM always returns JSON structured data.
+    # Each channel converts to its format as needed.
+    # Note: schema.extra_fields can only be defined at rule level, not in rule_base
+
+    style:
+      # Output style settings (applied as Output Style constraints)
+      # Tone: "constructive", "strict", "friendly", "professional"
+      # Note: Tone is now part of Output Style constraints, not the role definition
+      tone: constructive
+      concise: true
+      no_emoji: true
+      no_date: true
+      # language: "zh-cn"  # Response language (ISO 639-1 code: en, zh-cn, zh-tw, ja, ko, fr, de, es)
+
+    # Output channels
+    # Each channel can specify its own format: "markdown" or "json"
+    # Default formats by channel type:
+    #   - file, comment: markdown (human readable)
+    #   - webhook: json (structured data for API)
+    channels:
+      - type: file
+        # format: markdown  # default for file (human readable report)
+        dir: reports
+        overwrite: true
+
+      - type: comment
+        # format: markdown  # default for comment
+        # Overwrite: true to remove existing comments, false to append (default)
+        overwrite: true
+        # marker_prefix: review_by_scopeview  # Custom marker prefix
+
+      - type: webhook
+        # format: json  # default for webhook (structured data for API)
+        url: https://example.com/api/review-webhook
+        # header_secret: ""  # X-SCOPEVIEW-KEY header value
+        timeout: 60         # Timeout in seconds (30-300)
+        max_retries: 7      # Retry attempts (3-12)
+
+# Review rules
+rules:
+  - id: code-quality
+    description: |
+      Conducts rigorous and professional code quality review.
+
+    # Reference documentation files for AI to consult during review
+    # Paths are relative to repository root (maximum 5 files)
+    reference_docs:
+      - docs/coding-standards.md
+      - docs/architecture.md
+      - CONTRIBUTING.md
+
+    goals:
+      # Available areas (organized by category):
+      # 
+      # Code Quality (code-quality):
+      #   - business-logic: Business logic correctness
+      #   - logic-errors: Logic error detection
+      #   - edge-cases: Edge case handling
+      #   - runtime-safety: Runtime safety
+      #   - concurrency: Concurrency issues
+      #   - code-style: Code style consistency
+      #   - consistency: Code consistency
+      #   - readability: Code readability
+      #   - complexity: Code complexity
+      #   - error-handling: Error handling
+      #   - testability: Testability
+      #
+      # Security:
+      #   - security-vulnerabilities: Security vulnerabilities
+      #   - injection-attacks: Injection attacks (SQL, command, code injection, etc.)
+      #   - authentication: Authentication
+      #   - authorization: Authorization
+      #   - sensitive-data: Sensitive data protection
+      #   - cryptography: Cryptography security
+      #   - input-validation: Input validation
+      #   - xss: Cross-site scripting (XSS)
+      #   - csrf: Cross-site request forgery (CSRF)
+      #   - secrets-management: Secrets management
+      #   - secure-coding-practices: Secure coding practices
+      #   - ssrf: Server-side request forgery (SSRF)
+      #   - deserialization: Insecure deserialization
+      #   - security-misconfiguration: Security misconfiguration
+      #   - vulnerable-components: Vulnerable and outdated components
+      #   - logging-monitoring: Security logging and monitoring
+      #
+      # Performance:
+      #   - performance: Performance optimization
+      #   - efficiency: Efficiency improvement
+      #   - memory-usage: Memory usage
+      #   - cpu-usage: CPU usage
+      #   - io-optimization: I/O optimization
+      #   - database-optimization: Database optimization
+      #   - caching: Caching strategy
+      #   - algorithm-efficiency: Algorithm time complexity
+      #   - n-plus-one-query: N+1 query detection
+      #   - resource-leak: Resource leak (connections, file handles)
+      #
+      # Backdoor Detection:
+      #   - backdoor-detection: Backdoor detection
+      #   - malicious-code: Malicious code
+      #   - obfuscation: Code obfuscation
+      #   - hidden-access: Hidden access
+      #   - suspicious-patterns: Suspicious patterns
+      #   - unauthorized-access: Unauthorized access
+      #
+      # Testing:
+      #   - test-suggestions: Testing suggestions
+      #
+      # Architecture & Design:
+      #   - technical-debt: Technical debt identification
+      #   - architecture-design: Architecture design
+      #   - design-patterns: Design patterns
+      #   - modularity: Modularity design
+      #   - scalability: Scalability
+      #   - maintainability: Maintainability
+      #
+      # Compliance:
+      #   - compliance: Compliance checking
+      #   - license-compliance: License compliance
+      #   - regulatory-compliance: Regulatory compliance
+      #   - data-privacy: Data privacy compliance
+      areas:
+        - business-logic
+        - logic-errors
+        - edge-cases
+        - runtime-safety
+        - concurrency
+        - code-style
+        - consistency
+        - readability
+        - complexity
+        - error-handling
+        - testability
+      # Avoid list defines things the reviewer should NOT focus on
+      # Note: This is rendered under "Constraints - Don't" section in the prompt
+      avoid:
+        - Pure formatting issues (handled by formatters/linters)
+        - Subjective or cosmetic style preferences
+        - Suggestions that change product requirements
+        - Over-engineering or premature optimization
+        - Large refactors without critical justification
+
+    constraints:
+      scope_control:
+        - Review **only code changed in this PR**
+        - Do NOT comment on unrelated legacy code
+
+  # - id: security
+  #   description: |
+  #     Reviews code for security vulnerabilities and risks.
+  #     Focuses on injection attacks, auth flaws, data exposure, and input validation.
+
+  #   goals:
+  #     areas:
+  #       - security-vulnerabilities
+  #       - injection-attacks
+  #       - authentication
+  #       - authorization
+  #       - sensitive-data
+  #       - cryptography
+  #       - input-validation
+  #       - xss
+  #       - csrf
+  #       - secrets-management
+  #       - secure-coding-practices
+  #     avoid:
+  #       - False positives on intentionally disabled security for testing
+  #       - Theoretical attacks with no practical exploit path
+  #       - Security suggestions that break legitimate functionality
+
+  #   constraints:
+  #     scope_control:
+  #       - Review **only code changed in this PR**
+  #       - Do NOT comment on unrelated legacy code
+  #     severity:
+  #       min_report: medium  # Only report medium and above
+
+  #   # Custom output configuration with extra fields for security findings
+  #   # Note: extra_fields extend the base schema's findings with additional fields
+  #   output:
+  #     schema:
+  #       extra_fields:
+  #         - name: vulnerability_type
+  #           type: string
+  #           description: "Type of security vulnerability"
+  #           required: true
+  #           enum: ["sql_injection", "xss", "csrf", "auth_bypass", "sensitive_data_exposure", "insecure_deserialization", "broken_access_control", "security_misconfiguration", "injection", "other"]
+  #         - name: cve_id
+  #           type: string
+  #           description: "CVE identifier if applicable"
+  #         - name: cwe_id
+  #           type: string
+  #           description: "CWE identifier for the vulnerability type"
+  #         - name: remediation
+  #           type: string
+  #           description: "Recommended remediation steps"
+  #     channels:
+  #       - type: file
+  #         format: json  # Output JSON file for structured data
+  #         dir: reports
+  #         overwrite: true
+
+  # - id: performance
+  #   description: |
+  #     Analyzes code for performance issues and optimization opportunities.
+  #     Focuses on efficiency, resource usage, and scalability.
+
+  #   goals:
+  #     areas:
+  #       - performance
+  #       - efficiency
+  #       - memory-usage
+  #       - cpu-usage
+  #       - io-optimization
+  #       - database-optimization
+  #       - caching
+  #       - concurrency
+  #     avoid:
+  #       - Premature optimization suggestions
+  #       - Micro-optimizations with negligible impact
+  #       - Suggestions that sacrifice readability for minimal gains
+
+  #   constraints:
+  #     scope_control:
+  #       - Review **only code changed in this PR**
+  #       - Do NOT comment on unrelated legacy code
+
+  # - id: backdoor
+  #   description: |
+  #     Scans code for suspicious patterns that could indicate backdoors,
+  #     malicious code, or unauthorized access mechanisms.
+
+  #   goals:
+  #     areas:
+  #       - backdoor-detection
+  #       - malicious-code
+  #       - obfuscation
+  #       - hidden-access
+  #       - suspicious-patterns
+  #       - unauthorized-access
+  #     avoid:
+  #       - Flagging legitimate debugging or testing code
+  #       - False positives on common patterns
+
+  #   constraints:
+  #     scope_control:
+  #       - Review **only code changed in this PR**
+  #       - Do NOT comment on unrelated legacy code
+  #     severity:
+  #       min_report: high  # Only report high and critical for backdoor detection
+
+  #   output:
+  #     style:
+  #       tone: strict
+  #     channels:
+  #       - type: file
+  #         format: json  # JSON output for backdoor detection data
+  #         dir: reports
+  #         overwrite: true
+  #       - type: comment
+  #         # format: markdown  # default for comment
+  #         overwrite: true

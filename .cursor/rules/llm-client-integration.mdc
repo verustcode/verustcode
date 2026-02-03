@@ -1,0 +1,190 @@
+# LLM Client Integration Guide
+
+新增 LLM CLI 客户端集成指南（如 OpenAI CLI 等）
+
+## 架构
+
+**两层设计**：Agent 层（协调）→ Client 层（执行）→ 外部 CLI
+
+## 集成流程
+
+### 1. 前期调研（必做）
+
+确认以下信息：
+- [ ] CLI 命令名称和 API Key 环境变量名
+- [ ] Headless 参数（`-p`、`--model`、`--output-format`）
+- [ ] 输出格式（text、json、stream-json）及其 schema
+- [ ] Session 管理方式（创建、恢复、ID 提取）
+
+### 2. 创建文件
+
+```
+internal/llm/<name>/
+  ├── <name>.go          # Client 实现
+  └── <name>_test.go     # 测试
+
+internal/agent/<name>/
+  ├── <name>.go          # Agent 实现
+  └── <name>_test.go     # 测试
+```
+
+### 3. 实现 Client 层
+
+**必需接口**（`internal/llm/client.go`）：
+- `Name()` - 返回客户端标识符
+- `Available()` - 检测 CLI 是否可用
+- `GetConfig()` - 获取客户端配置
+- `Execute()` - 同步执行
+- `Close()` - 清理资源
+
+**可选接口**：
+- `ExecuteStream()` - 流式执行（如 CLI 支持）
+- `CreateSession()` - Session 管理（如需多轮对话）
+
+**核心逻辑**：
+```go
+// 1. 构建参数: []string{"-p", "--model", model, "--output-format", "text"}
+// 2. 添加 session: --resume <session_id>
+// 3. 创建命令: exec.CommandContext(ctx, cliPath, args...)
+// 4. 设置环境: cmd.Env + API Key
+// 5. stdin 写 prompt（goroutine）
+// 6. 等待完成，处理超时和错误
+// 7. 构建响应: BuildResponse()
+```
+
+### 4. 实现 Agent 层
+
+**职责**：创建 Client、配置管理、调用 Client 执行
+
+参考 `internal/agent/cursor/cursor.go` 或 `internal/agent/gemini/gemini.go`
+
+### 5. 注册和配置检查
+
+**重要**：新增的 Agent 和 Client 需要在多个位置注册，否则不会被正确加载或验证。
+
+#### 5.1 Agent 注册（`internal/agent/agents/agents.go`）
+```go
+import (
+    // ... 现有导入
+    _ "github.com/verustcode/verustcode/internal/agent/<name>"  // 新增
+)
+```
+
+#### 5.2 LLM Client 注册（`internal/check/validation.go`）
+用于 `serve --check` 时验证 agent 可用性：
+```go
+import (
+    // ... 现有导入
+    _ "github.com/verustcode/verustcode/internal/llm/<name>"  // 新增
+)
+```
+
+同时在 `getDefaultCLIName()` 函数中添加默认 CLI 名称：
+```go
+case "<name>":
+    return "<cli-command>"
+```
+
+#### 5.3 凭证检查（`internal/check/credentials.go`）
+用于 `serve --check` 时检查 API Key 配置：
+
+1. 添加 CredentialType 常量：
+```go
+const (
+    // ... 现有常量
+    Credential<Name> // <Name> CLI API key
+)
+```
+
+2. 在 `getCredentialConfigs()` 中添加配置：
+```go
+{
+    Name:        "<Name> API Key",
+    EnvVar:      "SC_<NAME>_API_KEY",
+    ConfigPath:  "agents.<name>.api_key",
+    Type:        Credential<Name>,
+    Description: "<Name> API key",
+    Required:    false,
+},
+```
+
+3. 在 `getConfigValue()` 的 switch 中添加处理：
+```go
+case Credential<Name>:
+    if agent := cfg.GetAgent("<name>"); agent != nil {
+        return agent.APIKey
+    }
+```
+
+> 注意：`main.go` 不需要修改，因为它通过 `internal/agent/agents` 聚合包自动加载所有 agent。
+
+### 6. 配置和测试
+
+**配置**（`config/config.example.yaml`）：
+```yaml
+agents:
+  <name>:
+    cli_path: <cli-command>
+    default_model: <model-name>
+    timeout: 600
+    api_key: ${<NAME>_API_KEY}
+```
+
+**测试**：验证注册、创建、可用性
+
+**验证清单**：
+- [ ] `go build` 编译通过
+- [ ] `go test` 测试通过
+- [ ] Client/Agent 注册成功
+- [ ] 已添加到 `internal/agent/agents/agents.go`（Agent 注册）
+- [ ] 已添加到 `internal/check/validation.go`（LLM Client 注册 + getDefaultCLIName）
+- [ ] 已添加到 `internal/check/credentials.go`（凭证检查配置）
+
+## 关键技术点
+
+**错误处理**：
+- 超时：`context.DeadlineExceeded` → `llm.ErrTimeout`
+- 可重试：网络错误 → `llm.NewRetryableError`
+
+**API Key 脱敏**：
+```go
+func maskAPIKey(key string) string {
+    if len(key) > 8 { return key[:4] + "..." + key[len(key)-4:] }
+    return "***"
+}
+```
+
+**流式解析**（如支持）：
+- 按行读取 JSON
+- 根据 `type` 字段分类（init/message/tool_use/result）
+- 使用 `sync.Mutex` 保护共享状态
+
+**并发安全**：stdin 写入用 goroutine，共享变量用 Mutex
+
+## 最佳实践
+
+**DO ✅**
+- 充分调研 CLI 参数和格式
+- 参考 `internal/llm/cursor/` 和 `internal/llm/gemini/`
+- API Key 必须脱敏
+- 使用 `BaseClient` 工具方法
+- stdin 写入用 goroutine
+
+**DON'T ❌**
+- 不要硬编码配置
+- 不要忽略错误
+- 不要泄露 API Key
+- 不要阻塞主流程
+
+## 参考
+
+**阅读顺序**：
+1. `internal/llm/cursor/cursor.go` - 完整 Client 实现
+2. `internal/llm/gemini/gemini.go` - 流式执行示例
+3. `internal/llm/qoder/qoder.go` - 简化版 Client 实现
+4. `internal/agent/cursor/cursor.go` - Agent 实现
+5. `internal/agent/qoder/qoder.go` - 简化版 Agent 实现
+
+
+---
+**参考文档**: `docs/gemini_cli_integration.md`

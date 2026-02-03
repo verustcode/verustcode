@@ -1,0 +1,35 @@
+/* Prism One Light theme - matches react-syntax-highlighter oneLight */
+code[class*="language-"],pre[class*="language-"]{background:hsl(230,1%,98%);color:hsl(230,8%,24%);font-family:"Fira Code","Fira Mono",Menlo,Consolas,"DejaVu Sans Mono",monospace;direction:ltr;text-align:left;white-space:pre;word-spacing:normal;word-break:normal;line-height:1.5;tab-size:2;hyphens:none}
+pre[class*="language-"]{padding:1em;margin:0.5em 0;overflow:auto;border-radius:0.3em}
+:not(pre)>code[class*="language-"]{padding:0.2em 0.3em;border-radius:0.3em;white-space:normal}
+.token.comment,.token.prolog,.token.cdata{color:hsl(230,4%,64%);font-style:italic}
+.token.doctype,.token.punctuation,.token.entity{color:hsl(230,8%,24%)}
+.token.attr-name,.token.class-name,.token.boolean,.token.constant,.token.number,.token.atrule{color:hsl(35,99%,36%)}
+.token.keyword{color:hsl(301,63%,40%)}
+.token.property,.token.tag,.token.symbol,.token.deleted,.token.important{color:hsl(5,74%,59%)}
+.token.selector,.token.string,.token.char,.token.builtin,.token.inserted,.token.regex,.token.attr-value,.token.attr-value>.token.punctuation{color:hsl(119,34%,47%)}
+.token.variable,.token.operator,.token.function{color:hsl(221,87%,60%)}
+.token.url{color:hsl(198,99%,37%)}
+.token.attr-value>.token.punctuation.attr-equals,.special-attr>.token.attr-value>.token.value.css{color:hsl(230,8%,24%)}
+.language-css .token.selector{color:hsl(5,74%,59%)}
+.language-css .token.property{color:hsl(230,8%,24%)}
+.language-css .token.function,.language-css .token.url>.token.function{color:hsl(198,99%,37%)}
+.language-css .token.url>.token.string.url{color:hsl(119,34%,47%)}
+.language-css .token.important,.language-css .token.atrule .token.rule{color:hsl(301,63%,40%)}
+.language-javascript .token.operator{color:hsl(301,63%,40%)}
+.language-javascript .token.template-string>.token.interpolation>.token.interpolation-punctuation.punctuation{color:hsl(344,84%,43%)}
+.language-json .token.operator{color:hsl(230,8%,24%)}
+.language-json .token.null.keyword{color:hsl(35,99%,36%)}
+.language-markdown .token.url,.language-markdown .token.url>.token.operator,.language-markdown .token.url-reference.url>.token.string{color:hsl(230,8%,24%)}
+.language-markdown .token.url>.token.content{color:hsl(221,87%,60%)}
+.language-markdown .token.url>.token.url,.language-markdown .token.url-reference.url{color:hsl(198,99%,37%)}
+.language-markdown .token.blockquote.punctuation,.language-markdown .token.hr.punctuation{color:hsl(230,4%,64%);font-style:italic}
+.language-markdown .token.code-snippet{color:hsl(119,34%,47%)}
+.language-markdown .token.bold .token.content{color:hsl(35,99%,36%)}
+.language-markdown .token.italic .token.content{color:hsl(301,63%,40%)}
+.language-markdown .token.strike .token.content,.language-markdown .token.strike .token.punctuation,.language-markdown .token.list.punctuation,.language-markdown .token.title.important>.token.punctuation{color:hsl(5,74%,59%)}
+.token.bold{font-weight:bold}
+.token.italic{font-style:italic}
+.token.namespace{opacity:0.8}
+.line-numbers .line-numbers-rows{border-right-color:hsla(230,8%,24%,0.2)}
+.line-numbers-rows>span:before{color:hsl(230,1%,62%)}

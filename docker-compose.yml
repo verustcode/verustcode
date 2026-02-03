@@ -1,0 +1,120 @@
+# VerustCode Docker Compose Configuration
+# Includes main application, Prometheus metrics, and Jaeger tracing
+
+services:
+  # ==========================================================================
+  # VerustCode Application
+  # ==========================================================================
+  verustcode:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VERSION: ${VERSION:-docker}
+    image: verustcode:${VERSION:-latest}
+    container_name: verustcode
+    restart: unless-stopped
+    ports:
+      # Main HTTP server (Web UI / API / Webhooks)
+      - "8091:8091"
+      # Prometheus metrics endpoint (internal, scraped by prometheus service)
+    environment:
+      # Git provider tokens (set in .env or shell environment)
+      - SC_GITHUB_TOKEN=${SC_GITHUB_TOKEN:-}
+      - SC_GITHUB_WEBHOOK_SECRET=${SC_GITHUB_WEBHOOK_SECRET:-}
+      - SC_GITLAB_TOKEN=${SC_GITLAB_TOKEN:-}
+      - SC_GITLAB_URL=${SC_GITLAB_URL:-}
+      - SC_GITLAB_WEBHOOK_SECRET=${SC_GITLAB_WEBHOOK_SECRET:-}
+      - SC_GITEA_TOKEN=${SC_GITEA_TOKEN:-}
+      - SC_GITEA_URL=${SC_GITEA_URL:-}
+      - SC_GITEA_WEBHOOK_SECRET=${SC_GITEA_WEBHOOK_SECRET:-}
+      # AI agent API keys
+      - SC_CURSOR_API_KEY=${SC_CURSOR_API_KEY:-}
+      - SC_GEMINI_API_KEY=${SC_GEMINI_API_KEY:-}
+      - SC_QODER_API_KEY=${SC_QODER_API_KEY:-}
+      # Timezone
+      - TZ=${TZ:-Asia/Shanghai}
+    volumes:
+      # Configuration files (required)
+      - ./config:/app/config:ro
+      # SQLite database (persistent)
+      - ./data:/app/data
+      # Application logs (persistent)
+      - ./logs:/app/logs
+      # Review task workspace (temporary clones)
+      - ./workspace:/app/workspace
+      # Report task workspace (temporary clones for analysis)
+      - ./report_workspace:/app/report_workspace
+      # Review results output
+      - ./review_results:/app/review_results
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8091/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - verustcode-network
+    depends_on:
+      jaeger:
+        condition: service_started
+
+  # ==========================================================================
+  # Prometheus - Metrics Collection
+  # ==========================================================================
+  prometheus:
+    image: prom/prometheus:v3.4.0
+    container_name: verustcode-prometheus
+    restart: unless-stopped
+    ports:
+      # Prometheus Web UI
+      - "9092:9090"
+    volumes:
+      # Prometheus configuration
+      - ./docker/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      # Prometheus data (persistent)
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=15d'
+      - '--web.enable-lifecycle'
+    networks:
+      - verustcode-network
+
+  # ==========================================================================
+  # Jaeger - Distributed Tracing
+  # ==========================================================================
+  jaeger:
+    image: jaegertracing/all-in-one:1.69
+    container_name: verustcode-jaeger
+    restart: unless-stopped
+    ports:
+      # Jaeger Web UI
+      - "16686:16686"
+      # OTLP gRPC receiver (for verustcode traces)
+      - "4317:4317"
+      # OTLP HTTP receiver
+      - "4318:4318"
+    environment:
+      # Enable OTLP receiver
+      - COLLECTOR_OTLP_ENABLED=true
+      # Memory storage (for development/small deployments)
+      - SPAN_STORAGE_TYPE=memory
+    networks:
+      - verustcode-network
+
+# ==========================================================================
+# Networks
+# ==========================================================================
+networks:
+  verustcode-network:
+    driver: bridge
+
+# ==========================================================================
+# Volumes
+# ==========================================================================
+volumes:
+  prometheus-data:
+    driver: local
+
