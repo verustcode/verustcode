@@ -1,102 +1,102 @@
 # LLM Client Integration Guide
 
-新增 LLM CLI 客户端集成指南（如 OpenAI CLI 等）
+Guide for integrating new LLM CLI clients (e.g., OpenAI CLI, etc.)
 
-## 架构
+## Architecture
 
-**两层设计**：Agent 层（协调）→ Client 层（执行）→ 外部 CLI
+**Two-layer Design**: Agent Layer (Orchestration) → Client Layer (Execution) → External CLI
 
-## 集成流程
+## Integration Process
 
-### 1. 前期调研（必做）
+### 1. Preliminary Research (Mandatory)
 
-确认以下信息：
-- [ ] CLI 命令名称和 API Key 环境变量名
-- [ ] Headless 参数（`-p`、`--model`、`--output-format`）
-- [ ] 输出格式（text、json、stream-json）及其 schema
-- [ ] Session 管理方式（创建、恢复、ID 提取）
+Confirm the following information:
+- [ ] CLI command name and API Key environment variable name
+- [ ] Headless parameters (`-p`, `--model`, `--output-format`)
+- [ ] Output format (text, json, stream-json) and its schema
+- [ ] Session management (creation, resumption, ID extraction)
 
-### 2. 创建文件
+### 2. File Structure
 
 ```
 internal/llm/<name>/
-  ├── <name>.go          # Client 实现
-  └── <name>_test.go     # 测试
+  ├── <name>.go          # Client implementation
+  └── <name>_test.go     # Tests
 
 internal/agent/<name>/
-  ├── <name>.go          # Agent 实现
-  └── <name>_test.go     # 测试
+  ├── <name>.go          # Agent implementation
+  └── <name>_test.go     # Tests
 ```
 
-### 3. 实现 Client 层
+### 3. Implement Client Layer
 
-**必需接口**（`internal/llm/client.go`）：
-- `Name()` - 返回客户端标识符
-- `Available()` - 检测 CLI 是否可用
-- `GetConfig()` - 获取客户端配置
-- `Execute()` - 同步执行
-- `Close()` - 清理资源
+**Required Interfaces** (`internal/llm/client.go`):
+- `Name()` - Returns the client identifier
+- `Available()` - Detects if the CLI is available
+- `GetConfig()` - Retrieves client configuration
+- `Execute()` - Synchronous execution
+- `Close()` - Resource cleanup
 
-**可选接口**：
-- `ExecuteStream()` - 流式执行（如 CLI 支持）
-- `CreateSession()` - Session 管理（如需多轮对话）
+**Optional Interfaces**:
+- `ExecuteStream()` - Streaming execution (if supported by CLI)
+- `CreateSession()` - Session management (for multi-turn conversations)
 
-**核心逻辑**：
+**Core Logic**:
 ```go
-// 1. 构建参数: []string{"-p", "--model", model, "--output-format", "text"}
-// 2. 添加 session: --resume <session_id>
-// 3. 创建命令: exec.CommandContext(ctx, cliPath, args...)
-// 4. 设置环境: cmd.Env + API Key
-// 5. stdin 写 prompt（goroutine）
-// 6. 等待完成，处理超时和错误
-// 7. 构建响应: BuildResponse()
+// 1. Build arguments: []string{"-p", "--model", model, "--output-format", "text"}
+// 2. Add session: --resume <session_id>
+// 3. Create command: exec.CommandContext(ctx, cliPath, args...)
+// 4. Set environment: cmd.Env + API Key
+// 5. Write prompt to stdin (goroutine)
+// 6. Wait for completion, handle timeouts and errors
+// 7. Build response: BuildResponse()
 ```
 
-### 4. 实现 Agent 层
+### 4. Implement Agent Layer
 
-**职责**：创建 Client、配置管理、调用 Client 执行
+**Responsibilities**: Create Client, manage configuration, call Client for execution.
 
-参考 `internal/agent/cursor/cursor.go` 或 `internal/agent/gemini/gemini.go`
+Refer to `internal/agent/cursor/cursor.go` or `internal/agent/gemini/gemini.go`.
 
-### 5. 注册和配置检查
+### 5. Registration and Configuration Check
 
-**重要**：新增的 Agent 和 Client 需要在多个位置注册，否则不会被正确加载或验证。
+**Important**: New Agents and Clients must be registered in multiple locations; otherwise, they won't be correctly loaded or validated.
 
-#### 5.1 Agent 注册（`internal/agent/agents/agents.go`）
+#### 5.1 Agent Registration (`internal/agent/agents/agents.go`)
 ```go
 import (
-    // ... 现有导入
-    _ "github.com/verustcode/verustcode/internal/agent/<name>"  // 新增
+    // ... existing imports
+    _ "github.com/verustcode/verustcode/internal/agent/<name>"  // Add new
 )
 ```
 
-#### 5.2 LLM Client 注册（`internal/check/validation.go`）
-用于 `serve --check` 时验证 agent 可用性：
+#### 5.2 LLM Client Registration (`internal/check/validation.go`)
+Used for validating agent availability during `serve --check`:
 ```go
 import (
-    // ... 现有导入
-    _ "github.com/verustcode/verustcode/internal/llm/<name>"  // 新增
+    // ... existing imports
+    _ "github.com/verustcode/verustcode/internal/llm/<name>"  // Add new
 )
 ```
 
-同时在 `getDefaultCLIName()` 函数中添加默认 CLI 名称：
+Also, add the default CLI name in the `getDefaultCLIName()` function:
 ```go
 case "<name>":
     return "<cli-command>"
 ```
 
-#### 5.3 凭证检查（`internal/check/credentials.go`）
-用于 `serve --check` 时检查 API Key 配置：
+#### 5.3 Credential Check (`internal/check/credentials.go`)
+Used for checking API Key configuration during `serve --check`:
 
-1. 添加 CredentialType 常量：
+1. Add `CredentialType` constant:
 ```go
 const (
-    // ... 现有常量
+    // ... existing constants
     Credential<Name> // <Name> CLI API key
 )
 ```
 
-2. 在 `getCredentialConfigs()` 中添加配置：
+2. Add configuration in `getCredentialConfigs()`:
 ```go
 {
     Name:        "<Name> API Key",
@@ -108,7 +108,7 @@ const (
 },
 ```
 
-3. 在 `getConfigValue()` 的 switch 中添加处理：
+3. Add handling in the `getConfigValue()` switch:
 ```go
 case Credential<Name>:
     if agent := cfg.GetAgent("<name>"); agent != nil {
@@ -116,11 +116,11 @@ case Credential<Name>:
     }
 ```
 
-> 注意：`main.go` 不需要修改，因为它通过 `internal/agent/agents` 聚合包自动加载所有 agent。
+> Note: `main.go` does not need modification as it automatically loads all agents via the `internal/agent/agents` aggregation package.
 
-### 6. 配置和测试
+### 6. Configuration and Testing
 
-**配置**（`config/config.example.yaml`）：
+**Configuration** (`config/config.example.yaml`):
 ```yaml
 agents:
   <name>:
@@ -130,23 +130,23 @@ agents:
     api_key: ${<NAME>_API_KEY}
 ```
 
-**测试**：验证注册、创建、可用性
+**Testing**: Verify registration, creation, and availability.
 
-**验证清单**：
-- [ ] `go build` 编译通过
-- [ ] `go test` 测试通过
-- [ ] Client/Agent 注册成功
-- [ ] 已添加到 `internal/agent/agents/agents.go`（Agent 注册）
-- [ ] 已添加到 `internal/check/validation.go`（LLM Client 注册 + getDefaultCLIName）
-- [ ] 已添加到 `internal/check/credentials.go`（凭证检查配置）
+**Verification Checklist**:
+- [ ] `go build` compiles successfully
+- [ ] `go test` passes
+- [ ] Client/Agent registration successful
+- [ ] Added to `internal/agent/agents/agents.go` (Agent registration)
+- [ ] Added to `internal/check/validation.go` (LLM Client registration + getDefaultCLIName)
+- [ ] Added to `internal/check/credentials.go` (Credential check configuration)
 
-## 关键技术点
+## Key Technical Points
 
-**错误处理**：
-- 超时：`context.DeadlineExceeded` → `llm.ErrTimeout`
-- 可重试：网络错误 → `llm.NewRetryableError`
+**Error Handling**:
+- Timeout: `context.DeadlineExceeded` → `llm.ErrTimeout`
+- Retryable: Network errors → `llm.NewRetryableError`
 
-**API Key 脱敏**：
+**API Key Masking**:
 ```go
 func maskAPIKey(key string) string {
     if len(key) > 8 { return key[:4] + "..." + key[len(key)-4:] }
@@ -154,37 +154,37 @@ func maskAPIKey(key string) string {
 }
 ```
 
-**流式解析**（如支持）：
-- 按行读取 JSON
-- 根据 `type` 字段分类（init/message/tool_use/result）
-- 使用 `sync.Mutex` 保护共享状态
+**Stream Parsing** (if supported):
+- Read JSON line by line
+- Categorize by `type` field (init/message/tool_use/result)
+- Protect shared state with `sync.Mutex`
 
-**并发安全**：stdin 写入用 goroutine，共享变量用 Mutex
+**Concurrency Safety**: Use goroutines for stdin writes and Mutex for shared variables.
 
-## 最佳实践
+## Best Practices
 
 **DO ✅**
-- 充分调研 CLI 参数和格式
-- 参考 `internal/llm/cursor/` 和 `internal/llm/gemini/`
-- API Key 必须脱敏
-- 使用 `BaseClient` 工具方法
-- stdin 写入用 goroutine
+- Thoroughly research CLI parameters and formats
+- Refer to `internal/llm/cursor/` and `internal/llm/gemini/`
+- API Keys must be masked
+- Use `BaseClient` utility methods
+- Use goroutines for stdin writes
 
 **DON'T ❌**
-- 不要硬编码配置
-- 不要忽略错误
-- 不要泄露 API Key
-- 不要阻塞主流程
+- Do not hardcode configurations
+- Do not ignore errors
+- Do not leak API Keys
+- Do not block the main process
 
-## 参考
+## References
 
-**阅读顺序**：
-1. `internal/llm/cursor/cursor.go` - 完整 Client 实现
-2. `internal/llm/gemini/gemini.go` - 流式执行示例
-3. `internal/llm/qoder/qoder.go` - 简化版 Client 实现
-4. `internal/agent/cursor/cursor.go` - Agent 实现
-5. `internal/agent/qoder/qoder.go` - 简化版 Agent 实现
+**Reading Order**:
+1. `internal/llm/cursor/cursor.go` - Full Client implementation
+2. `internal/llm/gemini/gemini.go` - Streaming execution example
+3. `internal/llm/qoder/qoder.go` - Simplified Client implementation
+4. `internal/agent/cursor/cursor.go` - Agent implementation
+5. `internal/agent/qoder/qoder.go` - Simplified Agent implementation
 
 
 ---
-**参考文档**: `docs/gemini_cli_integration.md`
+**Reference Document**: `docs/gemini_cli_integration.md`
